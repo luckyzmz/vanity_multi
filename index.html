@@ -1,0 +1,1082 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="color-scheme" content="dark" />
+<link rel="icon" href="data:," />
+<title>vanity_multi — 多链 BIP39 靓号地址生成器</title>
+<meta name="description" content="单文件 CUDA 程序，五链合一：ETH / BTC / TRX / SOL / SOLBIP 的 BIP39 vanity 地址 GPU 爆破搜索。RTX 4080 SUPER 实测 SOL 7.5M keys/s。" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,600;0,800;1,400&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#05090a;
+    --bg2:#081012;
+    --panel:#0a1417;
+    --panel2:#0d1b1f;
+    --line:#1c3338;
+    --line-bright:#2a4d53;
+    --text:#d9f2ec;
+    --muted:#8fb3ab;
+    --dim:#5d7f78;
+    --cyan:#00e5ff;
+    --cyan-dim:rgba(0,229,255,.12);
+    --lime:#b6ff2e;
+    --lime-dim:rgba(182,255,46,.10);
+    --pink:#ff2e88;
+    --amber:#ffb000;
+    --red:#ff4d4d;
+    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:"Noto Sans SC",system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion:reduce){ html{scroll-behavior:auto} *{animation-duration:.01ms !important; transition-duration:.01ms !important} }
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:var(--sans); line-height:1.65; overflow-x:hidden;
+    background-image:
+      linear-gradient(rgba(0,229,255,.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,.045) 1px, transparent 1px);
+    background-size:44px 44px;
+  }
+  body::after{
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:60; opacity:.5;
+    background:repeating-linear-gradient(0deg, rgba(0,0,0,.16) 0 1px, transparent 1px 3px);
+    mix-blend-mode:multiply;
+  }
+  ::selection{background:var(--cyan); color:#001318}
+  a{color:var(--cyan)}
+  button,[role="button"],select,summary,input:not([type="checkbox"],[type="radio"]){min-height:2.75rem}
+  .wrap{max-width:1180px; margin:0 auto; padding:0 20px}
+  .mono{font-family:var(--mono)}
+
+  /* ---------- NAV ---------- */
+  header.nav{
+    position:sticky; top:0; z-index:50;
+    background:rgba(5,9,10,.88); backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);
+  }
+  .nav-in{display:flex; align-items:center; gap:18px; height:60px}
+  .logo{font-family:var(--mono); font-weight:800; font-size:17px; letter-spacing:.02em; color:var(--text); text-decoration:none; white-space:nowrap}
+  .logo b{color:var(--cyan)} .logo span{color:var(--lime)}
+  .logo .cursor{display:inline-block; width:9px; height:16px; background:var(--lime); vertical-align:-2px; margin-left:5px; animation:blink 1.06s steps(1) infinite}
+  @keyframes blink{50%{opacity:0}}
+  nav.links{margin-left:auto; display:flex; gap:4px; align-items:center; flex-wrap:wrap}
+  nav.links a{
+    color:var(--muted); text-decoration:none; font-size:13.5px; font-weight:500;
+    padding:10px 12px; min-height:44px; display:inline-flex; align-items:center;
+  }
+  nav.links a:hover{color:var(--cyan)}
+  .btn-gh{
+    font-family:var(--mono); font-size:13px; font-weight:700;
+    background:var(--cyan); color:#00161b !important; padding:10px 16px !important;
+    clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px);
+  }
+  .btn-gh:hover{filter:brightness(1.15)}
+  .lang-switch{display:flex; border:1px solid var(--line-bright); background:var(--panel); margin-right:2px}
+  .lang-switch button{
+    font-family:var(--mono); font-size:12px; font-weight:700; letter-spacing:.05em;
+    background:transparent; color:var(--muted); border:0; cursor:pointer;
+    padding:8px 11px; min-height:44px;
+  }
+  .lang-switch button + button{border-left:1px solid var(--line)}
+  .lang-switch button.on{background:var(--lime); color:#131a00}
+  .lang-switch button:not(.on):hover{color:var(--cyan)}
+  @media (max-width:760px){ nav.links a:not(.btn-gh){display:none} .lang-switch button{padding:8px 8px} }
+
+  /* ---------- HERO ---------- */
+  .hero{padding-top:64px; padding-bottom:46px; position:relative; overflow:hidden}
+  .hero::before{
+    content:""; position:absolute; top:-40px; right:-120px; width:520px; height:520px; pointer-events:none;
+    background:radial-gradient(circle, rgba(0,229,255,.14), transparent 65%);
+  }
+  .tag{
+    display:inline-flex; gap:8px; align-items:center; font-family:var(--mono); font-size:12.5px;
+    color:var(--lime); border:1px solid rgba(182,255,46,.4); background:var(--lime-dim);
+    padding:7px 12px; letter-spacing:.06em;
+  }
+  .tag i{width:7px;height:7px;background:var(--lime);border-radius:50%; box-shadow:0 0 10px var(--lime); animation:pulse 1.8s infinite}
+  @keyframes pulse{50%{opacity:.35}}
+  h1.glitch{
+    font-family:var(--mono); font-weight:800; line-height:.98; letter-spacing:-.01em;
+    font-size:clamp(28px,10vw,104px); margin:22px 0 6px; color:#f2fffc; max-width:100%;
+    text-shadow:3px 0 0 rgba(255,46,136,.55), -3px 0 0 rgba(0,229,255,.55);
+  }
+  h1.glitch .u{color:var(--cyan); text-shadow:3px 0 0 rgba(255,46,136,.55), -3px 0 0 rgba(182,255,46,.5)}
+  .hero-sub{font-size:clamp(19px,3.4vw,27px); font-weight:900; margin:10px 0 0; color:var(--text)}
+  .hero-sub em{font-style:normal; color:var(--cyan)}
+  .hero-desc{max-width:640px; color:var(--muted); font-size:15.5px; margin:16px 0 0}
+  .hero-desc code{font-family:var(--mono); color:var(--lime); font-size:13.5px; background:var(--lime-dim); padding:1px 6px}
+  .cta-row{display:flex; gap:12px; flex-wrap:wrap; margin-top:28px}
+  .btn{
+    display:inline-flex; align-items:center; gap:9px; text-decoration:none; font-weight:700; font-size:15px;
+    padding:13px 22px; min-height:48px;
+    clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px);
+  }
+  .btn-primary{background:var(--lime); color:#131a00}
+  .btn-primary:hover{filter:brightness(1.12)}
+  .btn-ghost{background:var(--panel2); color:var(--cyan); border:0; box-shadow:inset 0 0 0 1px var(--line-bright)}
+  .btn-ghost:hover{box-shadow:inset 0 0 0 1px var(--cyan)}
+  .hero-stats{display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--line); border:1px solid var(--line); margin-top:40px}
+  .hstat{background:var(--bg2); padding:16px 18px}
+  .hstat .n{font-family:var(--mono); font-weight:800; font-size:clamp(20px,3.4vw,30px); color:#fff}
+  .hstat .n small{font-size:.55em; color:var(--cyan); font-weight:600}
+  .hstat .l{font-size:12.5px; color:var(--dim); margin-top:2px; letter-spacing:.04em}
+  @media (max-width:760px){ .hero-stats{grid-template-columns:1fr 1fr} }
+  .full-run{
+    margin-top:14px; border:1px solid rgba(182,255,46,.55);
+    background:linear-gradient(90deg, rgba(182,255,46,.12), rgba(0,229,255,.06) 55%, transparent), var(--panel);
+    padding:18px 20px; display:flex; gap:18px; align-items:flex-start; flex-wrap:wrap;
+  }
+  .full-run .badge{
+    font-family:var(--mono); font-weight:800; font-size:12px; letter-spacing:.08em;
+    color:#131a00; background:var(--lime); padding:5px 10px; white-space:nowrap; margin-top:2px;
+  }
+  .full-run .body{flex:1 1 420px; min-width:0}
+  .full-run h3{margin:0; font-size:19px; font-weight:900}
+  .full-run h3 .en{font-family:var(--mono); color:var(--lime); font-size:15px}
+  .full-run p{margin:5px 0 0; color:var(--muted); font-size:14px}
+  .full-run p b{color:var(--text)}
+  .full-run p code{font-family:var(--mono); font-size:12.5px; color:var(--cyan)}
+
+  /* ---------- TERMINAL ---------- */
+  .term{
+    margin-top:38px; border:1px solid var(--line-bright); background:#04070a;
+    box-shadow:0 0 0 1px rgba(0,229,255,.06), 0 24px 60px rgba(0,0,0,.55), 0 0 44px rgba(0,229,255,.07);
+  }
+  .term-bar{display:flex; align-items:center; gap:8px; padding:10px 14px; border-bottom:1px solid var(--line); background:var(--panel)}
+  .dot{width:11px;height:11px;border-radius:50%}
+  .term-title{font-family:var(--mono); font-size:12.5px; color:var(--muted); margin-left:8px}
+  .term-live{margin-left:auto; font-family:var(--mono); font-size:11px; color:var(--lime); letter-spacing:.1em}
+  .term-body{font-family:var(--mono); font-size:13px; line-height:1.75; padding:16px 18px 18px; min-height:238px; overflow:hidden}
+  .term-body .p{color:var(--lime)} .term-body .c{color:#eafffa} .term-body .d{color:#5f7f88}
+  .term-body .hit{color:#0a0f00; background:var(--lime); font-weight:700; padding:0 4px}
+  .term-body .addr{color:var(--cyan)} .term-body .warn{color:var(--amber)}
+  #termLines{white-space:pre-wrap; word-break:break-all}
+  .term-caret{display:inline-block; width:8px; height:15px; background:var(--cyan); vertical-align:-2px; animation:blink 1s steps(1) infinite}
+
+  /* ---------- TICKER ---------- */
+  .ticker{border-block:1px solid var(--line); background:var(--bg2); overflow:hidden; padding:9px 0; margin-top:52px}
+  .ticker-track{display:flex; gap:44px; width:max-content; font-family:var(--mono); font-size:12.5px; color:var(--dim); white-space:nowrap; animation:tick 46s linear infinite}
+  .ticker-track b{color:var(--cyan); font-weight:600}
+  .ticker-track .g{color:var(--lime)}
+  @keyframes tick{to{transform:translateX(-50%)}}
+  @media (prefers-reduced-motion:reduce){ .ticker-track{animation:none} }
+
+  /* ---------- SECTIONS ---------- */
+  section{padding:74px 0 8px}
+  .sec-head{display:flex; align-items:baseline; gap:16px; flex-wrap:wrap; margin-bottom:8px}
+  .sec-no{font-family:var(--mono); color:var(--pink); font-weight:800; font-size:15px}
+  h2{font-size:clamp(26px,4.6vw,38px); font-weight:900; margin:0; letter-spacing:.01em}
+  h2 .en{font-family:var(--mono); color:var(--cyan); font-weight:800}
+  .sec-desc{color:var(--muted); max-width:720px; font-size:15px; margin:8px 0 0}
+  .reveal{opacity:0; transform:translateY(14px); transition:opacity .55s ease, transform .55s ease}
+  .reveal.in{opacity:1; transform:none}
+  @media (prefers-reduced-motion:reduce){ .reveal{opacity:1; transform:none; transition:none} }
+
+  /* chains */
+  .chains{display:grid; grid-template-columns:repeat(6,1fr); gap:14px; margin-top:30px}
+  .chain{
+    grid-column:span 2; background:var(--panel); border:1px solid var(--line); padding:22px 20px 18px; position:relative;
+  }
+  .chain::before{content:""; position:absolute; top:0; left:0; right:0; height:3px; background:var(--ac,var(--cyan))}
+  .chain.wide{grid-column:span 3}
+  @media (max-width:900px){ .chain,.chain.wide{grid-column:span 3} }
+  @media (max-width:600px){ .chain,.chain.wide{grid-column:span 6} }
+  .chain .sym{font-family:var(--mono); font-weight:800; font-size:26px; color:#fff}
+  .chain .sym small{font-size:12px; color:var(--ac,var(--cyan)); letter-spacing:.08em}
+  .chain .cmd{font-family:var(--mono); font-size:12px; color:var(--lime); background:#060d06; border:1px solid #22331a; display:inline-block; padding:3px 9px; margin:10px 0 12px}
+  .chain dl{margin:0; font-size:13.5px}
+  .chain dl div{display:flex; gap:10px; padding:5px 0; border-top:1px dashed #17303a}
+  .chain dt{color:var(--dim); flex:0 0 64px; font-size:12px; padding-top:2px}
+  .chain dd{margin:0; font-family:var(--mono); font-size:12.5px; color:var(--text); word-break:break-all}
+  .chain .speed{margin-top:14px; font-family:var(--mono)}
+  .chain .speed .v{font-size:21px; font-weight:800; color:var(--ac,var(--cyan))}
+  .chain .speed .u{font-size:11.5px; color:var(--dim)}
+
+  /* pipeline */
+  .pipe{display:grid; grid-template-columns:repeat(5,1fr); gap:0; margin-top:30px; border:1px solid var(--line)}
+  .step{background:var(--bg2); padding:20px 18px; position:relative}
+  .step + .step{border-left:1px solid var(--line)}
+  .step .idx{font-family:var(--mono); font-size:11px; color:var(--pink); letter-spacing:.12em}
+  .step h3{margin:8px 0 6px; font-size:16.5px}
+  .step h3 .mono{color:var(--cyan); font-size:15px}
+  .step p{margin:0; font-size:13px; color:var(--muted)}
+  .step::after{content:"▸"; position:absolute; right:-9px; top:50%; transform:translateY(-50%); color:var(--cyan); z-index:2; font-size:16px}
+  .step:last-child::after{display:none}
+  @media (max-width:900px){
+    .pipe{grid-template-columns:1fr}
+    .step + .step{border-left:0; border-top:1px solid var(--line)}
+    .step::after{content:"▾"; right:auto; left:50%; top:auto; bottom:-11px; transform:translateX(-50%)}
+  }
+
+  /* bench */
+  .bench-grid{display:grid; grid-template-columns:1.25fr .75fr; gap:14px; margin-top:30px}
+  @media (max-width:900px){ .bench-grid{grid-template-columns:1fr} }
+  .panel{background:var(--panel); border:1px solid var(--line); padding:24px}
+  .panel h3{margin:0 0 4px; font-size:17px}
+  .panel .note{font-size:12.5px; color:var(--dim); margin:0 0 18px}
+  .bar-row{margin-bottom:16px}
+  .bar-row:last-child{margin-bottom:0}
+  .bar-meta{display:flex; justify-content:space-between; font-family:var(--mono); font-size:12.5px; margin-bottom:6px}
+  .bar-meta .nm{color:var(--text); font-weight:700}
+  .bar-meta .vl{color:var(--cyan)}
+  .bar{height:14px; background:#0a1a1e; border:1px solid #17303a; position:relative; overflow:hidden}
+  .bar i{position:absolute; inset:0; width:0; background:repeating-linear-gradient(-45deg, var(--cyan) 0 8px, #00b8cc 8px 16px); transition:width 1.1s cubic-bezier(.2,.8,.2,1)}
+  .bar i.lime{background:repeating-linear-gradient(-45deg, var(--lime) 0 8px, #8fd41f 8px 16px)}
+  .bar i.pink{background:repeating-linear-gradient(-45deg, var(--pink) 0 8px, #d61f70 8px 16px)}
+  .bench-table{width:100%; border-collapse:collapse; font-size:13px}
+  .bench-table th{font-family:var(--mono); font-size:11.5px; color:var(--dim); text-align:left; padding:8px 8px; border-bottom:1px solid var(--line-bright); letter-spacing:.05em}
+  .bench-table td{padding:9px 8px; border-bottom:1px dashed #17303a; font-family:var(--mono); font-size:12.5px; vertical-align:top}
+  .bench-table td:first-child{color:var(--lime); white-space:nowrap}
+  .fact-list{margin:0; padding:0; list-style:none; font-size:14px}
+  .fact-list li{padding:11px 0 11px 22px; border-bottom:1px dashed #17303a; position:relative; color:var(--muted)}
+  .fact-list li:last-child{border-bottom:0}
+  .fact-list li::before{content:"//"; position:absolute; left:0; color:var(--pink); font-family:var(--mono); font-size:12px; top:13px}
+  .fact-list b{color:var(--text)}
+  .fact-list code{font-family:var(--mono); color:var(--cyan); font-size:12.5px}
+
+  /* playground */
+  .play{border:1px solid var(--line-bright); background:#04070a; margin-top:30px}
+  .play-head{display:flex; flex-wrap:wrap; gap:10px; align-items:center; padding:14px 18px; border-bottom:1px solid var(--line); background:var(--panel)}
+  .play-head .t{font-family:var(--mono); font-weight:800; font-size:14px}
+  .demo-badge{font-family:var(--mono); font-size:11px; color:#1a1000; background:var(--amber); font-weight:800; padding:3px 8px; letter-spacing:.08em}
+  .play-controls{display:flex; flex-wrap:wrap; gap:10px; padding:18px}
+  .play-controls label{font-size:12.5px; color:var(--dim); display:flex; flex-direction:column; gap:6px; font-family:var(--mono)}
+  .play-controls select,.play-controls input{
+    background:#071114; color:var(--text); border:1px solid var(--line-bright); font-family:var(--mono);
+    font-size:15px; padding:10px 12px; min-height:46px;
+  }
+  .play-controls select:focus,.play-controls input:focus{outline:2px solid var(--cyan); outline-offset:1px}
+  #prefixInput{width:170px; text-transform:none}
+  .play-btn{
+    align-self:flex-end; font-family:var(--mono); font-weight:800; font-size:14px; cursor:pointer;
+    background:var(--lime); color:#131a00; border:0; padding:12px 26px; min-height:46px;
+    clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px);
+  }
+  .play-btn.stop{background:var(--pink); color:#fff}
+  .play-stats{display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--line); border-block:1px solid var(--line)}
+  .pstat{background:var(--bg2); padding:13px 16px}
+  .pstat .n{font-family:var(--mono); font-weight:800; font-size:19px; color:#fff; word-break:break-all}
+  .pstat .l{font-size:11.5px; color:var(--dim); font-family:var(--mono); letter-spacing:.06em}
+  @media (max-width:700px){ .play-stats{grid-template-columns:1fr 1fr} }
+  .play-feed{font-family:var(--mono); font-size:12.5px; line-height:1.9; padding:14px 18px; height:196px; overflow:hidden; color:#6f969e; word-break:break-all}
+  .play-feed .hitline{color:#0a0f00}
+  .play-feed .hitline span{background:var(--lime); font-weight:800; padding:1px 5px}
+  .play-feed .hitaddr{color:var(--cyan)}
+  .play-foot{padding:12px 18px; border-top:1px solid var(--line); font-size:12.5px; color:var(--dim)}
+
+  /* code blocks */
+  .code-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:30px}
+  @media (max-width:900px){ .code-grid{grid-template-columns:1fr} }
+  .code-card{background:#04070a; border:1px solid var(--line); }
+  .code-card .ch{display:flex; align-items:center; gap:10px; padding:11px 16px; border-bottom:1px solid var(--line); background:var(--panel)}
+  .code-card .ch .fn{font-family:var(--mono); font-size:12.5px; color:var(--muted)}
+  .code-card .ch .step-no{font-family:var(--mono); font-size:11px; color:#001318; background:var(--cyan); font-weight:800; padding:2px 7px}
+  .copy-btn{
+    margin-left:auto; font-family:var(--mono); font-size:12px; cursor:pointer; min-height:36px;
+    background:transparent; color:var(--cyan); border:1px solid var(--line-bright); padding:7px 13px;
+  }
+  .copy-btn:hover{border-color:var(--cyan)}
+  .copy-btn.done{color:var(--lime); border-color:var(--lime)}
+  .code-card pre{margin:0; padding:16px 18px; overflow-x:auto; font-family:var(--mono); font-size:13px; line-height:1.8; color:#c9efe6}
+  .code-card pre .cm{color:#527078} .code-card pre .hl{color:var(--lime)} .code-card pre .cy{color:var(--cyan)}
+  .cmds{margin-top:14px}
+  .cmds pre{white-space:pre-wrap; word-break:break-word}
+
+  /* tables -> cards on mobile */
+  .tbl{width:100%; border-collapse:collapse; margin-top:26px; font-size:13.5px; background:var(--panel); border:1px solid var(--line)}
+  .tbl th{font-family:var(--mono); font-size:11.5px; letter-spacing:.06em; color:var(--dim); text-align:left; padding:12px 16px; border-bottom:1px solid var(--line-bright); background:var(--bg2)}
+  .tbl td{padding:12px 16px; border-bottom:1px dashed #17303a; vertical-align:top}
+  .tbl tr:last-child td{border-bottom:0}
+  .tbl td code{font-family:var(--mono); font-size:12.5px; color:var(--cyan); word-break:break-all}
+  .tbl td:first-child{font-family:var(--mono); font-weight:700; color:var(--lime); white-space:nowrap}
+  @media (max-width:680px){
+    .tbl thead{display:none}
+    .tbl, .tbl tbody, .tbl tr, .tbl td{display:block; width:100%}
+    .tbl tr{padding:10px 0; border-bottom:1px solid var(--line)}
+    .tbl td{border-bottom:0; padding:5px 16px}
+    .tbl td:first-child{white-space:normal}
+  }
+
+  /* security */
+  .sec-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:30px}
+  @media (max-width:900px){ .sec-grid{grid-template-columns:1fr} }
+  .danger{border:1px solid rgba(255,46,136,.45); background:linear-gradient(180deg, rgba(255,46,136,.07), transparent 55%), var(--panel); padding:24px}
+  .danger h3{margin:0 0 12px; color:#ff7ab3; font-size:17px}
+  .okbox{border:1px solid rgba(182,255,46,.35); background:linear-gradient(180deg, rgba(182,255,46,.05), transparent 55%), var(--panel); padding:24px}
+  .okbox h3{margin:0 0 12px; color:var(--lime); font-size:17px}
+  .sec-grid ul{margin:0; padding-left:20px; font-size:14px; color:var(--muted)}
+  .sec-grid li{margin-bottom:9px}
+  .sec-grid code{font-family:var(--mono); font-size:12.5px; color:var(--cyan)}
+  .sec-grid b{color:var(--text)}
+
+  footer{margin-top:84px; border-top:1px solid var(--line); background:var(--bg2); padding:34px 0 44px}
+  .foot-in{display:flex; flex-wrap:wrap; gap:18px; align-items:flex-start; justify-content:space-between}
+  footer .mono-sm{font-family:var(--mono); font-size:12.5px; color:var(--dim); line-height:2}
+  footer a{font-family:var(--mono); font-size:13px}
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap nav-in">
+    <a class="logo" href="#top">VANITY<b>_</b>MULTI<span>.</span><span class="cursor"></span></a>
+    <nav class="links">
+      <a href="#chains">五条链</a>
+      <a href="#bench">实测速率</a>
+      <a href="#play">在线演示</a>
+      <a href="#start">快速开始</a>
+      <a href="#security">安全</a>
+      <span class="lang-switch" role="group" aria-label="Language / 语言切换">
+        <button type="button" id="langZh" class="on" aria-pressed="true">中文</button>
+        <button type="button" id="langEn" aria-pressed="false">EN</button>
+      </span>
+      <a class="btn-gh" href="https://github.com/luckyzmz/vanity_multi" target="_blank" rel="noopener">GitHub ↗</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+  <!-- HERO -->
+  <div class="wrap hero">
+    <span class="tag"><i></i> OPEN SOURCE · CUDA · SINGLE FILE · MIT-STYLE 自由取用</span>
+    <h1 class="glitch">VANITY<span class="u">_</span>MULTI</h1>
+    <p class="hero-sub">多链 BIP39 靓号地址生成器 —— <em>五条链，一个 exe</em></p>
+    <p class="hero-desc">
+      把 <code>eth</code> / <code>btc</code> / <code>trx</code> / <code>sol</code>（随机 seed 快速版）/ <code>solbip</code>（助记词版）
+      五套 GPU 搜索合并进单文件源码 <code>vanity_multi.cu</code>。输入你想要的前缀，显卡全速爆破，
+      命中的助记词与私钥实时落盘。带参数直达某条链，不带参数进交互菜单。
+    </p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="https://github.com/luckyzmz/vanity_multi" target="_blank" rel="noopener">→ 前往 GitHub 仓库</a>
+      <a class="btn btn-ghost" href="#start">快速开始</a>
+      <a class="btn btn-ghost" href="#play">先玩演示</a>
+    </div>
+
+    <div class="hero-stats">
+      <div class="hstat"><div class="n">5 <small>CHAINS</small></div><div class="l">ETH · BTC · TRX · SOL · SOLBIP</div></div>
+      <div class="hstat"><div class="n">7.52M <small>keys/s</small></div><div class="l">SOL 快速版峰值吞吐（4080 SUPER）</div></div>
+      <div class="hstat"><div class="n">1 <small>FILE</small></div><div class="l">单 .cu 源码 · 五链合一</div></div>
+      <div class="hstat"><div class="n">12/12 <small>PASS</small></div><div class="l">SOLBIP 内置自检全过</div></div>
+    </div>
+
+    <div class="full-run reveal">
+      <span class="badge">★ 卖点 +1</span>
+      <div class="body">
+        <h3>可以跑全量地址 <span class="en">/ FULL ADDRESS RUN</span></h3>
+        <p>不止拼几位前缀——<b>完整地址也能整段作为目标来跑</b>：ETH 的 <code>0x + 40 hex</code>、BTC / TRX / SOL 的完整地址形态都支持全长匹配搜索。想定点跑出某一个全量地址，不用换工具、不用截断前缀，这一个 exe 就能跑到底。</p>
+      </div>
+    </div>
+
+    <!-- TERMINAL -->
+    <div class="term" aria-label="终端演示">
+      <div class="term-bar">
+        <span class="dot" style="background:#ff5f57"></span>
+        <span class="dot" style="background:#febc2e"></span>
+        <span class="dot" style="background:#28c840"></span>
+        <span class="term-title">vanity_multi.exe — RTX 4080 SUPER · sm_89</span>
+        <span class="term-live">● REPLAY · 录制回放</span>
+      </div>
+      <div class="term-body"><span id="termLines"></span><span class="term-caret"></span></div>
+    </div>
+  </div>
+
+  <!-- TICKER -->
+  <div class="ticker" aria-hidden="true">
+    <div class="ticker-track" id="tickerTrack"></div>
+  </div>
+
+  <!-- CHAINS -->
+  <section id="chains">
+    <div class="wrap">
+      <div class="sec-head reveal"><span class="sec-no">01</span><h2>五条链 <span class="en">/ CHAINS</span></h2></div>
+      <p class="sec-desc reveal">每条链独立命名空间、独立派生口径。ETH / BTC / TRX 走 BIP39 → PBKDF2 → BIP32/44；SOLBIP 走 SLIP-0010；SOL 快速版不走助记词，随机 seed 直达 ed25519，所以快一个数量级。</p>
+      <div class="chains">
+        <article class="chain reveal" style="--ac:#00e5ff">
+          <div class="sym">ETH <small>ETHEREUM</small></div>
+          <span class="cmd">$ vanity_multi.exe eth vanity 0x12345 8 1024</span>
+          <dl>
+            <div><dt>派生路径</dt><dd>m/44'/60'/0'/0/N</dd></div>
+            <div><dt>曲线 / 哈希</dt><dd>secp256k1 + keccak256</dd></div>
+            <div><dt>地址形态</dt><dd>0x + 40 hex</dd></div>
+            <div><dt>命中文件</dt><dd>eth_hits.txt</dd></div>
+          </dl>
+          <div class="speed"><span class="v">339,653</span> <span class="u">addr/s</span></div>
+        </article>
+
+        <article class="chain reveal" style="--ac:#ffb000">
+          <div class="sym">BTC <small>BITCOIN · 4 种地址</small></div>
+          <span class="cmd">$ vanity_multi.exe btc vanity 1abc 0 5 1024</span>
+          <dl>
+            <div><dt>派生路径</dt><dd>m/44'/0'/0'/0/N</dd></div>
+            <div><dt>曲线 / 哈希</dt><dd>secp256k1 + hash160 / bech32</dd></div>
+            <div><dt>地址形态</dt><dd>1… P2PKH · 3… P2SH-P2WPKH · bc1q… P2WPKH · bc1p… P2TR</dd></div>
+            <div><dt>命中文件</dt><dd>btc_hits.txt</dd></div>
+          </dl>
+          <div class="speed"><span class="v">350,504</span> <span class="u">addr/s（P2TR）</span></div>
+        </article>
+
+        <article class="chain reveal" style="--ac:#ff2e88">
+          <div class="sym">TRX <small>TRON</small></div>
+          <span class="cmd">$ vanity_multi.exe trx vanity Txxx 4 1024</span>
+          <dl>
+            <div><dt>派生路径</dt><dd>m/44'/195'/0'/0/N</dd></div>
+            <div><dt>曲线 / 哈希</dt><dd>secp256k1 + keccak256</dd></div>
+            <div><dt>地址形态</dt><dd>T…（34 字符 Base58Check）</dd></div>
+            <div><dt>命中文件</dt><dd>trx_hits.txt</dd></div>
+          </dl>
+          <div class="speed"><span class="v">350,300</span> <span class="u">addr/s</span></div>
+        </article>
+
+        <article class="chain wide reveal" style="--ac:#b6ff2e">
+          <div class="sym">SOL <small>SOLANA · 快速版</small></div>
+          <span class="cmd">$ vanity_multi.exe sol vanity Ase 1024</span>
+          <dl>
+            <div><dt>生成方式</dt><dd>随机 32B seed → SHA512 → clamp（无助记词）</dd></div>
+            <div><dt>曲线</dt><dd>ed25519</dd></div>
+            <div><dt>地址形态</dt><dd>Base58（32B 公钥）</dd></div>
+            <div><dt>命中文件</dt><dd>sol_hits.txt（secret key + Keypair JSON）</dd></div>
+          </dl>
+          <div class="speed"><span class="v">7,519,436</span> <span class="u">keys/s — 全场最快，恢复靠私钥导入</span></div>
+        </article>
+
+        <article class="chain wide reveal" style="--ac:#00e5ff">
+          <div class="sym">SOLBIP <small>SOLANA · 助记词版</small></div>
+          <span class="cmd">$ vanity_multi.exe solbip vanity Ase 1024</span>
+          <dl>
+            <div><dt>派生路径</dt><dd>BIP39 → PBKDF2(2048) → SLIP-0010 m/44'/501'/0'/0'</dd></div>
+            <div><dt>曲线</dt><dd>ed25519</dd></div>
+            <div><dt>地址形态</dt><dd>Base58，可用助记词在 Phantom 等钱包恢复</dd></div>
+            <div><dt>命中文件</dt><dd>sol_bip39_hits.txt</dd></div>
+          </dl>
+          <div class="speed"><span class="v">534,132</span> <span class="u">keys/s — 每候选 2048 轮 PBKDF2，慢是硬成本</span></div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- PIPELINE -->
+  <section id="how">
+    <div class="wrap">
+      <div class="sec-head reveal"><span class="sec-no">02</span><h2>爆破流水线 <span class="en">/ PIPELINE</span></h2></div>
+      <p class="sec-desc reveal">GPU 上每个线程独立跑完整条派生链：计数器混合 secret 生成熵 → 助记词 → 种子 → 子私钥 → 公钥 → 地址 → 前缀比对。命中用 atomicCAS 抢槽落盘，一批跑满才刷新速率——所以显示的每一个数字都是真实吞吐。</p>
+      <div class="pipe reveal">
+        <div class="step"><div class="idx">STEP 01</div><h3>熵生成 <span class="mono">ENTROPY</span></h3><p>SHA256(secret ‖ counter) 取前 16 字节。secret 首次运行自动生成、永不打印，决定整条助记词序列。</p></div>
+        <div class="step"><div class="idx">STEP 02</div><h3>助记词 <span class="mono">BIP39</span></h3><p>熵 → 12 词助记词（2048 词表），再经 PBKDF2-HMAC-SHA512 2048 轮拉伸出种子。</p></div>
+        <div class="step"><div class="idx">STEP 03</div><h3>派生 <span class="mono">BIP32 / SLIP-10</span></h3><p>按各链 BIP44 路径逐层 CKD 派生子私钥，一个助记词可派生 nidx 个索引地址。</p></div>
+        <div class="step"><div class="idx">STEP 04</div><h3>公钥与地址 <span class="mono">CURVE</span></h3><p>secp256k1 或 ed25519 标量乘，再按链规则编码：hex / Base58Check / bech32(m)。</p></div>
+        <div class="step"><div class="idx">STEP 05</div><h3>比对落盘 <span class="mono">MATCH</span></h3><p>前缀命中立即无缓冲追加写入 hits 文件，强杀不丢；搜索不停，Ctrl+C 才退出。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BENCH -->
+  <section id="bench">
+    <div class="wrap">
+      <div class="sec-head reveal"><span class="sec-no">03</span><h2>实测速率 <span class="en">/ BENCHMARK</span></h2></div>
+      <p class="sec-desc reveal">RTX 4080 SUPER · sm_89 · -O2 · 2026-11-11 终版 exe 内置 <span class="mono" style="color:var(--cyan)">bench</span> 实测。柱状图为对数刻度——SOL 快速版比助记词链快约 20 倍，线性刻度下其余链会看不见。</p>
+      <div class="bench-grid">
+        <div class="panel reveal">
+          <h3>吞吐对比（对数刻度）</h3>
+          <p class="note">单位：每秒生成的候选地址 / 密钥数</p>
+          <div class="bar-row"><div class="bar-meta"><span class="nm">SOL · 快速版</span><span class="vl">7,519,436 /s</span></div><div class="bar"><i class="lime" data-w="100"></i></div></div>
+          <div class="bar-row"><div class="bar-meta"><span class="nm">SOLBIP · 助记词版</span><span class="vl">534,132 /s</span></div><div class="bar"><i data-w="42"></i></div></div>
+          <div class="bar-row"><div class="bar-meta"><span class="nm">BTC · P2TR</span><span class="vl">350,504 /s</span></div><div class="bar"><i data-w="35"></i></div></div>
+          <div class="bar-row"><div class="bar-meta"><span class="nm">TRX</span><span class="vl">350,300 /s</span></div><div class="bar"><i class="pink" data-w="35"></i></div></div>
+          <div class="bar-row"><div class="bar-meta"><span class="nm">ETH</span><span class="vl">339,653 /s</span></div><div class="bar"><i data-w="34"></i></div></div>
+        </div>
+        <div class="panel reveal">
+          <h3>原始跑分记录</h3>
+          <p class="note">命令与原始计数，来自 README 第 8 节</p>
+          <table class="bench-table">
+            <tr><th>链</th><th>命令</th><th>结果</th></tr>
+            <tr><td>eth</td><td>eth bench 8 1024</td><td>2,097,152 次 / 6.17s</td></tr>
+            <tr><td>btc</td><td>btc bench 3 8 1024</td><td>2,097,152 次 / 5.98s</td></tr>
+            <tr><td>trx</td><td>trx bench 8 1024</td><td>2,097,152 次 / 5.99s</td></tr>
+            <tr><td>sol</td><td>sol bench 64 1024</td><td>16,777,216 keys / 2.23s</td></tr>
+            <tr><td>solbip</td><td>solbip bench 1 8192</td><td>2,097,152 keys / 3.93s</td></tr>
+          </table>
+        </div>
+      </div>
+      <div class="panel reveal" style="margin-top:14px">
+        <h3>为什么这组数字可信</h3>
+        <p class="note">速率造假最常见的地方，这个项目专门修过</p>
+        <ul class="fact-list">
+          <li>早期版本 kernel 开头有一句 <code>if (*d_found) return;</code>——一个线程命中，整批提前退出，主机端却按整批计数，短前缀时速率虚高约 <b>6.6 倍</b>（显示 2M、实际 340K）。<b>终版已删除，每批跑满，速率即真实吞吐。</b></li>
+          <li>五条链内置 <code>selftest</code>：secp256k1 三链核对 11 行已知曲线向量，SOL 系打印 <b>10 pass / 12 pass</b> 显式结论，不联网、不跑搜索就能验。</li>
+          <li><code>eth test</code> 输出 BIP39 官方向量：熵 <code>00×16</code> → <code>abandon … about</code>，与标准逐字一致。</li>
+          <li>命中记录可用独立 Python 脚本从助记词复算验证：本轮 ETH <b>47/47</b>、BTC <b>2/2</b>、TRX <b>7/7</b> 全部 ok，0 mismatch。</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- PLAYGROUND -->
+  <section id="play">
+    <div class="wrap">
+      <div class="sec-head reveal"><span class="sec-no">04</span><h2>在线演示 <span class="en">/ PLAYGROUND</span></h2></div>
+      <p class="sec-desc reveal">在浏览器里感受一下 vanity 搜索的节奏：选链、填前缀、开跑。下面是纯前端模拟——真实爆破请在本地用 NVIDIA 显卡跑 exe，前缀每多一位，期望耗时约乘以 16（ETH）到 58（SOL）。</p>
+
+      <div class="play reveal">
+        <div class="play-head">
+          <span class="t">VANITY SEARCH — SIMULATOR</span>
+          <span class="demo-badge">浏览器演示 · 非真实 GPU 搜索</span>
+        </div>
+        <div class="play-controls">
+          <label>CHAIN
+            <select id="chainSel">
+              <option value="eth">ETH — Ethereum</option>
+              <option value="btc">BTC — Bitcoin (P2PKH)</option>
+              <option value="trx">TRX — TRON</option>
+              <option value="sol" selected>SOL — Solana 快速版</option>
+              <option value="solbip">SOLBIP — Solana 助记词版</option>
+            </select>
+          </label>
+          <label>PREFIX
+            <input id="prefixInput" type="text" value="Ase" maxlength="6" autocomplete="off" spellcheck="false" />
+          </label>
+          <button class="play-btn" id="runBtn" type="button">▶ START</button>
+        </div>
+        <div class="play-stats">
+          <div class="pstat"><div class="n" id="stTried">0</div><div class="l">TRIED 已尝试</div></div>
+          <div class="pstat"><div class="n" id="stRate">0 /s</div><div class="l">DISPLAY RATE 显示速率</div></div>
+          <div class="pstat"><div class="n" id="stHits">0</div><div class="l">HITS 命中</div></div>
+          <div class="pstat"><div class="n" id="stEta">—</div><div class="l">EXPECTED 期望尝试次数</div></div>
+        </div>
+        <div class="play-feed" id="playFeed"><span style="color:#527078">// 候选地址流会显示在这里。点 START 开始模拟搜索…</span></div>
+        <div class="play-foot">提示：前缀规则同真实程序——ETH 用十六进制、TRX 必须以 T 开头、SOL 用 Base58 且区分大小写。演示按各链真实速率的缩放比例滚动，命中概率按真实组合数学计算。</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- QUICK START -->
+  <section id="start">
+    <div class="wrap">
+      <div class="sec-head reveal"><span class="sec-no">05</span><h2>快速开始 <span class="en">/ QUICK START</span></h2></div>
+      <p class="sec-desc reveal">环境：CUDA Toolkit（nvcc 13.3）+ MSVC BuildTools 2022 + NVIDIA GPU。单次编译约 25 分钟以上，ptxas 满载、日志长时间 0 字节是正常现象，别中途重开。</p>
+      <div class="reveal" style="margin-top:16px; border:1px solid rgba(255,176,0,.5); background:rgba(255,176,0,.06); padding:16px 18px; font-size:14px; color:var(--muted)">
+        <b style="color:var(--amber)">⚠ 仓库现状（2026-11-12 核对）：</b>
+        GitHub 仓库根目录目前只有 <code class="mono" style="color:var(--cyan)">vanity_multi.cu</code>、<code class="mono" style="color:var(--cyan)">merge_multi.py</code>、<code class="mono" style="color:var(--cyan)">README.md</code> 三个文件。
+        而 <code class="mono" style="color:var(--cyan)">vanity_multi.cu</code> 开头有 <code class="mono" style="color:var(--cyan)">#include "bip39_words.h"</code>——README 里列出的词表头文件 <code class="mono" style="color:var(--cyan)">bip39_words.h</code> 与编译脚本 <code class="mono" style="color:var(--cyan)">build_multi.bat</code> <b style="color:var(--text)">尚未随仓库发布</b>，直接 clone 后编译会缺头文件。
+        先向作者索取 <code class="mono" style="color:var(--cyan)">bip39_words.h</code>（BIP39 2048 词表）放到 .cu 同目录，再按下方的 nvcc 命令编译。
+      </div>
+
+      <div class="code-grid">
+        <div class="code-card reveal">
+          <div class="ch"><span class="step-no">STEP 1</span><span class="fn">clone + build（Windows）</span><button class="copy-btn" type="button" data-copy="git clone https://github.com/luckyzmz/vanity_multi.git&#10;cd vanity_multi&#10;nvcc -O2 -arch=sm_89 -Xcompiler=/utf-8 -o vanity_multi.exe vanity_multi.cu">复制</button></div>
+          <pre><span class="cm"># 克隆仓库</span>
+<span class="cy">git clone</span> https://github.com/luckyzmz/vanity_multi.git
+<span class="cy">cd</span> vanity_multi
+
+<span class="cm"># 把 bip39_words.h 放到同目录后（见上方仓库现状），</span>
+<span class="cm"># 在 vcvars64 环境里直接 nvcc 编译</span>
+nvcc <span class="hl">-O2 -arch=sm_89</span> -Xcompiler=/utf-8 \
+  -o vanity_multi.exe vanity_multi.cu</pre>
+        </div>
+        <div class="code-card reveal">
+          <div class="ch"><span class="step-no">STEP 2</span><span class="fn">run — 五链各来一发</span><button class="copy-btn" type="button" data-copy="vanity_multi.exe&#10;vanity_multi.exe eth vanity 0x12345 8 1024&#10;vanity_multi.exe btc vanity 1abc 0 5 1024&#10;vanity_multi.exe trx vanity Txxx 4 1024&#10;vanity_multi.exe sol vanity Ase 1024&#10;vanity_multi.exe solbip vanity Ase 1024">复制</button></div>
+          <pre><span class="cm">:: 无参数 = 交互菜单</span>
+vanity_multi.exe
+
+<span class="cm">:: 带参数直达（&lt;chain&gt; &lt;mode&gt; ...）</span>
+vanity_multi.exe <span class="hl">eth</span>    vanity 0x12345 8 1024
+vanity_multi.exe <span class="hl">btc</span>    vanity 1abc 0 5 1024
+vanity_multi.exe <span class="hl">trx</span>    vanity Txxx 4 1024
+vanity_multi.exe <span class="hl">sol</span>    vanity Ase 1024
+vanity_multi.exe <span class="hl">solbip</span> vanity Ase 1024</pre>
+        </div>
+      </div>
+
+      <div class="code-card cmds reveal">
+        <div class="ch"><span class="step-no">MODES</span><span class="fn">每条链的四种模式</span><button class="copy-btn" type="button" data-copy="vanity_multi.exe eth selftest&#10;vanity_multi.exe eth bench 8 1024&#10;vanity_multi.exe eth file prefixes.txt 1 1024&#10;vanity_multi.exe -h">复制</button></div>
+        <pre><span class="hl">vanity</span> &lt;prefix&gt;        单前缀搜索，无限跑，Ctrl+C 退出
+<span class="hl">file</span>   &lt;prefix_file&gt;   前缀文件批量搜（流式解析，支持 2GB+ 文件、自动去重）
+<span class="hl">bench</span>  [iters] [blocks] 跑吞吐基准
+<span class="hl">selftest</span>               内置向量自检，不联网、不跑搜索
+<span class="hl">-h</span>                    完整帮助（纯 ASCII 输出，控制台不乱码）</pre>
+      </div>
+
+      <table class="tbl reveal">
+        <thead><tr><th>链</th><th>前缀规则</th><th>期望难度</th><th>备注</th></tr></thead>
+        <tbody>
+          <tr><td>ETH</td><td><code>0x</code> + 十六进制，<code>0x</code> 可省略</td><td>每多 1 位 ×16</td><td>只取前 NL 位十六进制数字比对</td></tr>
+          <tr><td>BTC</td><td><code>1</code> / <code>3</code> / <code>bc1q</code> / <code>bc1p</code> 开头，须与 addrtype 自洽</td><td>1 / 3 开头 ×58；bc1q / bc1p 数据位 ×32</td><td>addrtype：0=P2PKH，1=P2SH-P2WPKH，2=P2WPKH，3=P2TR（默认）</td></tr>
+          <tr><td>TRX</td><td>必须以 <code>T</code> 开头，其后 Base58 字符集</td><td>每多 1 位 ×58</td><td>只有一个 EOA 地址输出</td></tr>
+          <tr><td>SOL / SOLBIP</td><td>Base58 字符集，最长 44，区分大小写</td><td>每多 1 位 ×58</td><td>6 字符以上在 0.5M/s 下要数小时起步</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- SECURITY -->
+  <section id="security">
+    <div class="wrap">
+      <div class="sec-head reveal"><span class="sec-no">06</span><h2>安全须知 <span class="en">/ SECURITY</span></h2></div>
+      <p class="sec-desc reveal">这工具输出的是真链上密钥。命中的那一刻，hits 文件就是你的钱包本身——怎么对钱包，就怎么对它。</p>
+      <div class="sec-grid">
+        <div class="danger reveal">
+          <h3>⚠ 红线</h3>
+          <ul>
+            <li><b>hits 文件是明文助记词 + 私钥</b>：放私有目录，别进云同步盘、别放共享目录、别截图发群。</li>
+            <li>工具输出的任何内容<b>不要粘贴到在线工具或聊天窗口</b>——粘出去就等于交出资产。</li>
+            <li>Windows 上 hits 文件无法 chmod 0600（源码已跳过该调用），目录权限要自己管好。</li>
+            <li>只对<b>自己拥有 / 控制</b>的地址做 vanity，不要拿它做他人地址的碰撞搜索。</li>
+          </ul>
+        </div>
+        <div class="okbox reveal">
+          <h3>✓ 设计上的保障</h3>
+          <ul>
+            <li><b>secret 不打印、不落明文日志</b>：<code>.eth_vanity_secret</code> 等 32B 文件首次运行自动生成，只影响序列可复现性，丢了不影响用 hits 里的助记词恢复钱包，仍建议离线备份。</li>
+            <li><b>命中即落盘</b>：无缓冲追加写入，Ctrl+C 强杀也不丢已命中记录。</li>
+            <li><b>可独立验证</b>：<code>selftest</code> / BIP39 标准向量 / Python 复算脚本三重锚点，不用信任作者口头数字。</li>
+            <li><b>已知限制写明在 README</b>：P2TR 为原始 x-only 编码、非 BIP86 tweak 地址，往 <code>bc1p</code> 收大额前先看第 4 节说明。</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="panel reveal" style="margin-top:14px">
+        <h3>运行期生成的文件</h3>
+        <p class="note">全部生成在当前目录，提前心里有数</p>
+        <ul class="fact-list">
+          <li><code>eth_hits.txt</code> / <code>btc_hits.txt</code> / <code>trx_hits.txt</code> — 三条助记词链的命中记录（助记词 + 地址 + 私钥 hex + 派生路径）</li>
+          <li><code>sol_hits.txt</code> — SOL 快速版命中（Address + 64B secret key + seed + Keypair JSON）</li>
+          <li><code>sol_bip39_hits.txt</code> — SOLBIP 命中（同上 + 12 词助记词 + 路径）</li>
+          <li><code>.xxx_vanity_secret</code> — 每链一份 32B secret，可用同名环境变量指定路径；SOL 快速版不落 secret，每次运行随机 salt 并在启动时打印，想复现自己记下来</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap foot-in">
+    <div>
+      <a class="logo" href="#top" style="font-size:15px">VANITY<b style="color:var(--cyan)">_</b>MULTI</a>
+      <div class="mono-sm">
+        单文件 CUDA 多链 BIP39 vanity 地址生成器<br/>
+        ETH · BTC · TRX · SOL · SOLBIP — one file, five chains.
+      </div>
+    </div>
+    <div class="mono-sm" style="text-align:right">
+      <a href="https://github.com/luckyzmz/vanity_multi" target="_blank" rel="noopener">github.com/luckyzmz/vanity_multi ↗</a><br/>
+      作者 <span style="color:var(--muted)">@luckyzmz</span> · 跑分环境 RTX 4080 SUPER / sm_89<br/>
+      本站数据取自仓库 README（2026-11-11 终版实测）
+    </div>
+  </div>
+</footer>
+
+<script>
+/* ---------- i18n: 中文 / English ---------- */
+(function(){
+  "use strict";
+  var PAIRS = [
+    ["多链 BIP39 靓号地址生成器","Multi-Chain BIP39 Vanity Address Generator"],
+    ["单文件 CUDA 多链 BIP39 vanity 地址生成器","Single-file CUDA multi-chain BIP39 vanity address generator"],
+    ["安全须知","Security Notes"],
+    ["五条链，一个 exe","five chains, one exe"],
+    ["五条链内置","All five chains ship a built-in"],
+    ["五条链","Five Chains"],
+    ["实测速率","Benchmark"],
+    ["在线演示","Playground"],
+    ["快速开始","Quick Start"],
+    ["安全","Security"],
+    ["自由取用","FREE TO USE"],
+    ["把","Packs the"],
+    ["（随机 seed 快速版）","(fast random-seed edition)"],
+    ["（助记词版）","(mnemonic edition)"],
+    ["五套 GPU 搜索合并进单文件源码","GPU search engines into a single source file"],
+    ["。输入你想要的前缀，显卡全速爆破，",". Enter the prefix you want and the GPU brute-forces at full speed,"],
+    ["命中的助记词与私钥实时落盘。带参数直达某条链，不带参数进交互菜单。","with matching mnemonics and private keys written to disk in real time. Pass arguments to jump straight to a chain; pass none to open the interactive menu."],
+    ["→ 前往 GitHub 仓库","→ View on GitHub"],
+    ["先玩演示","Try the demo first"],
+    ["SOL 快速版峰值吞吐（4080 SUPER）","SOL fast-edition peak throughput (4080 SUPER)"],
+    ["单 .cu 源码 · 五链合一","single .cu source · five chains in one"],
+    ["SOLBIP 内置自检全过","SOLBIP built-in selftest — all passing"],
+    ["★ 卖点 +1","★ HIGHLIGHT"],
+    ["可以跑全量地址","Full-Address Runs"],
+    ["不止拼几位前缀——","Not just a few prefix characters — "],
+    ["完整地址也能整段作为目标来跑","a complete address can be the target, end to end"],
+    ["：ETH 的",": ETH's"],
+    ["、BTC / TRX / SOL 的完整地址形态都支持全长匹配搜索。想定点跑出某一个全量地址，不用换工具、不用截断前缀，这一个 exe 就能跑到底。",", and the full address forms of BTC / TRX / SOL all support full-length matching. To hunt down one exact full address there is no tool-switching and no truncating the target to a prefix — this one exe runs it all the way."],
+    ["录制回放","RECORDED"],
+    ["每条链独立命名空间、独立派生口径。ETH / BTC / TRX 走 BIP39 → PBKDF2 → BIP32/44；SOLBIP 走 SLIP-0010；SOL 快速版不走助记词，随机 seed 直达 ed25519，所以快一个数量级。","Each chain gets its own namespace and its own derivation rules. ETH / BTC / TRX go BIP39 → PBKDF2 → BIP32/44; SOLBIP goes SLIP-0010; the fast SOL edition skips mnemonics entirely — a random seed straight to ed25519 — which is why it is an order of magnitude faster."],
+    ["派生路径","Derivation path"],
+    ["曲线 / 哈希","Curve / hash"],
+    ["地址形态","Address form"],
+    ["命中文件","Hits file"],
+    ["4 种地址","4 address types"],
+    ["（34 字符 Base58Check）","(34 chars, Base58Check)"],
+    ["生成方式","Generation"],
+    ["随机 32B seed → SHA512 → clamp（无助记词）","Random 32B seed → SHA512 → clamp (no mnemonic)"],
+    ["Base58（32B 公钥）","Base58 (32-byte public key)"],
+    ["全场最快，恢复靠私钥导入","fastest of the five — recovery via private-key import"],
+    ["Base58，可用助记词在 Phantom 等钱包恢复","Base58 — recoverable from the mnemonic in Phantom and other wallets"],
+    ["每候选 2048 轮 PBKDF2，慢是硬成本","2048 PBKDF2 rounds per candidate — the slowness is a hard cost"],
+    ["爆破流水线","Brute-Force Pipeline"],
+    ["GPU 上每个线程独立跑完整条派生链：计数器混合 secret 生成熵 → 助记词 → 种子 → 子私钥 → 公钥 → 地址 → 前缀比对。命中用 atomicCAS 抢槽落盘，一批跑满才刷新速率——所以显示的每一个数字都是真实吞吐。","Every GPU thread runs the full derivation chain on its own: counter mixed with the secret → entropy → mnemonic → seed → child private key → public key → address → prefix match. Hits claim a slot via atomicCAS and are flushed to disk; rates refresh only after a full batch completes — so every number shown is real throughput."],
+    ["熵生成","Entropy"],
+    ["SHA256(secret ‖ counter) 取前 16 字节。secret 首次运行自动生成、永不打印，决定整条助记词序列。","SHA256(secret ‖ counter), first 16 bytes. The secret is generated automatically on first run, is never printed, and determines the entire mnemonic sequence."],
+    ["熵 → 12 词助记词（2048 词表），再经 PBKDF2-HMAC-SHA512 2048 轮拉伸出种子。","Entropy → 12-word mnemonic (2048-word list), then stretched into a seed through 2048 rounds of PBKDF2-HMAC-SHA512."],
+    ["按各链 BIP44 路径逐层 CKD 派生子私钥，一个助记词可派生 nidx 个索引地址。","Child private keys are derived level by level along each chain's BIP44 path; one mnemonic yields nidx indexed addresses."],
+    ["公钥与地址","Public Key & Address"],
+    ["secp256k1 或 ed25519 标量乘，再按链规则编码：hex / Base58Check / bech32(m)。","secp256k1 or ed25519 scalar multiplication, then encoded per chain rules: hex / Base58Check / bech32(m)."],
+    ["比对落盘","Match & Save"],
+    ["前缀命中立即无缓冲追加写入 hits 文件，强杀不丢；搜索不停，Ctrl+C 才退出。","A prefix hit is appended to the hits file immediately and unbuffered — even a hard kill loses nothing. The search keeps running until Ctrl+C."],
+    ["助记词","Mnemonic"],
+    ["派生","Derivation"],
+    ["曲线","Curve"],
+    ["终版 exe 内置","final build, with a built-in"],
+    ["实测。柱状图为对数刻度——SOL 快速版比助记词链快约 20 倍，线性刻度下其余链会看不见。","measured live. The bars use a log scale — fast SOL runs about 20× quicker than the mnemonic chains; on a linear scale the rest would be invisible."],
+    ["吞吐对比（对数刻度）","Throughput comparison (log scale)"],
+    ["单位：每秒生成的候选地址 / 密钥数","Unit: candidate addresses / keys generated per second"],
+    ["原始跑分记录","Raw benchmark records"],
+    ["命令与原始计数，来自 README 第 8 节","Commands and raw counts, from README section 8"],
+    ["为什么这组数字可信","Why these numbers are trustworthy"],
+    ["速率造假最常见的地方，这个项目专门修过","The most common place benchmark numbers get faked — this project fixed it on purpose"],
+    ["早期版本 kernel 开头有一句","Early versions had a line at the top of the kernel:"],
+    ["——一个线程命中，整批提前退出，主机端却按整批计数，短前缀时速率虚高约"," — one thread hits and the whole batch exits early, yet the host still counts the full batch, inflating the reported rate on short prefixes by roughly"],
+    ["（显示 2M、实际 340K）。","(showing 2M, actually 340K). "],
+    ["终版已删除，每批跑满，速率即真实吞吐。","Removed in the final build: every batch runs to completion, so the rate is the real throughput."],
+    ["：secp256k1 三链核对 11 行已知曲线向量，SOL 系打印",": the three secp256k1 chains verify 11 lines of known curve vectors, and the SOL family prints an explicit"],
+    ["显式结论，不联网、不跑搜索就能验。","verdict — verifiable offline, with no search running."],
+    [" 输出 BIP39 官方向量：熵 "," prints the official BIP39 test vector: entropy "],
+    ["，与标准逐字一致。"," — matching the standard word for word."],
+    ["命中记录可用独立 Python 脚本从助记词复算验证：本轮 ETH","Hit records can be re-derived from the mnemonic with an independent Python script and verified: this round, ETH"],
+    ["全部 ok，0 mismatch。","all checked out ok, 0 mismatches."],
+    ["在浏览器里感受一下 vanity 搜索的节奏：选链、填前缀、开跑。下面是纯前端模拟——真实爆破请在本地用 NVIDIA 显卡跑 exe，前缀每多一位，期望耗时约乘以 16（ETH）到 58（SOL）。","Feel the rhythm of a vanity search right in the browser: pick a chain, type a prefix, hit start. This is a pure front-end simulation — for real brute-forcing, run the exe locally on an NVIDIA GPU. Each extra prefix character multiplies the expected time by about 16 (ETH) to 58 (SOL)."],
+    ["浏览器演示 · 非真实 GPU 搜索","BROWSER DEMO · NOT A REAL GPU SEARCH"],
+    ["TRIED 已尝试","TRIED"],
+    ["DISPLAY RATE 显示速率","DISPLAY RATE"],
+    ["HITS 命中","HITS"],
+    ["EXPECTED 期望尝试次数","EXPECTED"],
+    ["// 候选地址流会显示在这里。点 START 开始模拟搜索…","// Candidate addresses will stream here. Hit START to begin the simulated search…"],
+    ["提示：前缀规则同真实程序——ETH 用十六进制、TRX 必须以 T 开头、SOL 用 Base58 且区分大小写。演示按各链真实速率的缩放比例滚动，命中概率按真实组合数学计算。","Note: prefix rules match the real program — hex for ETH, TRX must start with T, SOL uses Base58 and is case-sensitive. The demo scrolls at a scaled proportion of each chain's real rate, and hit probability follows the real combinatorics."],
+    ["环境：CUDA Toolkit（nvcc 13.3）+ MSVC BuildTools 2022 + NVIDIA GPU。单次编译约 25 分钟以上，ptxas 满载、日志长时间 0 字节是正常现象，别中途重开。","Requirements: CUDA Toolkit (nvcc 13.3) + MSVC BuildTools 2022 + an NVIDIA GPU. A single build takes 25 minutes or more; ptxas running flat-out while the log sits at 0 bytes for a long stretch is normal — do not restart it midway."],
+    ["⚠ 仓库现状（2026-11-12 核对）：","⚠ Repo status (checked 2026-11-12):"],
+    ["GitHub 仓库根目录目前只有","The GitHub repo root currently holds only"],
+    ["三个文件。","three files."],
+    ["而","And"],
+    ["开头有","begins with"],
+    ["——README 里列出的词表头文件"," — yet the wordlist header listed in the README,"],
+    ["与编译脚本","and the build script"],
+    ["尚未随仓库发布","have not been published with the repo"],
+    ["，直接 clone 后编译会缺头文件。"," — clone it now and the build fails on the missing header."],
+    ["先向作者索取","Get"],
+    ["（BIP39 2048 词表）放到 .cu 同目录，再按下方的 nvcc 命令编译。"," (the BIP39 2048 wordlist) from the author, place it beside the .cu file, then compile with the nvcc command below."],
+    ["复制","Copy"],
+    ["# 克隆仓库","# Clone the repo"],
+    ["# 把 bip39_words.h 放到同目录后（见上方仓库现状），","# Put bip39_words.h in the same folder first (see the repo status note above),"],
+    ["# 在 vcvars64 环境里直接 nvcc 编译","# then compile directly with nvcc inside a vcvars64 environment"],
+    ["run — 五链各来一发","run — one shot per chain"],
+    [":: 无参数 = 交互菜单",":: no arguments = interactive menu"],
+    [":: 带参数直达（<chain> <mode> ...）",":: with arguments, straight to a chain (<chain> <mode> ...)"],
+    ["每条链的四种模式","The four modes, on every chain"],
+    ["单前缀搜索，无限跑，Ctrl+C 退出","single-prefix search, runs forever, Ctrl+C to exit"],
+    ["前缀文件批量搜（流式解析，支持 2GB+ 文件、自动去重）","batch-search a prefix file (streaming parser, 2GB+ files, auto-dedup)"],
+    ["跑吞吐基准","run the throughput benchmark"],
+    ["内置向量自检，不联网、不跑搜索","built-in vector self-check — offline, no searching"],
+    ["完整帮助（纯 ASCII 输出，控制台不乱码）","full help (pure ASCII output, no console mojibake)"],
+    ["前缀规则","Prefix rules"],
+    ["期望难度","Expected difficulty"],
+    ["备注","Notes"],
+    [" + 十六进制，"," + hex digits,"],
+    [" 可省略"," may be omitted"],
+    ["每多 1 位 ×16","×16 per extra char"],
+    ["只取前 NL 位十六进制数字比对","Only the first NL hex digits are compared"],
+    [" 开头，须与 addrtype 自洽"," start — must agree with addrtype"],
+    ["1 / 3 开头 ×58；bc1q / bc1p 数据位 ×32","1 / 3 starts: ×58; bc1q / bc1p data chars: ×32"],
+    ["addrtype：0=P2PKH，1=P2SH-P2WPKH，2=P2WPKH，3=P2TR（默认）","addrtype: 0=P2PKH, 1=P2SH-P2WPKH, 2=P2WPKH, 3=P2TR (default)"],
+    ["必须以","Must start with"],
+    [" 开头，其后 Base58 字符集"," start, followed by Base58 characters"],
+    ["每多 1 位 ×58","×58 per extra char"],
+    ["只有一个 EOA 地址输出","Only one EOA address output"],
+    ["Base58 字符集，最长 44，区分大小写","Base58 charset, max 44 chars, case-sensitive"],
+    ["6 字符以上在 0.5M/s 下要数小时起步","6+ chars means hours of searching at 0.5M/s"],
+    ["这工具输出的是真链上密钥。命中的那一刻，hits 文件就是你的钱包本身——怎么对钱包，就怎么对它。","This tool outputs real on-chain keys. The moment something hits, the hits file is your wallet itself — treat it exactly like one."],
+    ["⚠ 红线","⚠ Red lines"],
+    ["hits 文件是明文助记词 + 私钥","Hits files hold plaintext mnemonics + private keys"],
+    ["：放私有目录，别进云同步盘、别放共享目录、别截图发群。",": keep them in a private folder — no cloud-synced drives, no shared folders, no screenshots in group chats."],
+    ["工具输出的任何内容","anything the tool outputs"],
+    ["不要粘贴到在线工具或聊天窗口","Never paste it into online tools or chat windows"],
+    ["——粘出去就等于交出资产。"," — pasting it out is handing over your assets."],
+    ["Windows 上 hits 文件无法 chmod 0600（源码已跳过该调用），目录权限要自己管好。","On Windows, hits files cannot be chmod 0600 (the source skips that call) — manage the folder permissions yourself."],
+    ["只对","Only do vanity searches on addresses you"],
+    ["自己拥有 / 控制","own / control"],
+    ["的地址做 vanity，不要拿它做他人地址的碰撞搜索。"," — never use it to brute-force collisions against other people's addresses."],
+    ["✓ 设计上的保障","✓ Built-in safeguards"],
+    ["secret 不打印、不落明文日志","The secret is never printed or logged in plaintext"],
+    ["等 32B 文件首次运行自动生成，只影响序列可复现性，丢了不影响用 hits 里的助记词恢复钱包，仍建议离线备份。","32-byte files are generated automatically on first run. They only affect sequence reproducibility — losing one does not stop you recovering the wallet from the mnemonic in the hits file — but back them up offline anyway."],
+    ["命中即落盘","Hits are saved the moment they land"],
+    ["：无缓冲追加写入，Ctrl+C 强杀也不丢已命中记录。",": appended unbuffered, so even a Ctrl+C hard kill loses no recorded hit."],
+    ["可独立验证","Independently verifiable"],
+    [" / BIP39 标准向量 / Python 复算脚本三重锚点，不用信任作者口头数字。"," / the standard BIP39 vectors / a Python re-derivation script provide three independent anchors — no need to take the author's numbers on faith."],
+    ["已知限制写明在 README","Known limits are documented in the README"],
+    ["：P2TR 为原始 x-only 编码、非 BIP86 tweak 地址，往 ",": P2TR uses raw x-only encoding, not a BIP86 tweaked address; before receiving large amounts at a "],
+    [" 收大额前先看第 4 节说明。"," address, read section 4 first."],
+    ["运行期生成的文件","Files generated at runtime"],
+    ["全部生成在当前目录，提前心里有数","All created in the current directory — know before you run"],
+    [" — 三条助记词链的命中记录（助记词 + 地址 + 私钥 hex + 派生路径）"," — hit records for the three mnemonic chains (mnemonic + address + private-key hex + derivation path)"],
+    [" — SOL 快速版命中（Address + 64B secret key + seed + Keypair JSON）"," — fast-SOL hits (Address + 64B secret key + seed + Keypair JSON)"],
+    [" — SOLBIP 命中（同上 + 12 词助记词 + 路径）"," — SOLBIP hits (same as above + 12-word mnemonic + path)"],
+    [" — 每链一份 32B secret，可用同名环境变量指定路径；SOL 快速版不落 secret，每次运行随机 salt 并在启动时打印，想复现自己记下来"," — one 32B secret per chain, path overridable via the matching environment variable; fast SOL stores no secret — it prints a fresh random salt at startup, so note it down yourself if you want reproducibility"],
+    ["作者","Author"],
+    ["跑分环境","benchmarked on"],
+    ["本站数据取自仓库 README（2026-11-11 终版实测）","All data on this page comes from the repo README (final build, measured 2026-11-11)"],
+    ["快速版","fast edition"],
+    ["助记词版","mnemonic edition"],
+    ["结果","Result"],
+    ["命令","Command"],
+    ["链","Chain"],
+    ["次","runs"]
+  ];
+  /* punctuation-only fallbacks: applied zh->en only, not reversed */
+  var PUNCT = [["——"," — "],["、",", "],["。",". "],["，",", "],["：",": "],["；","; "],["（"," ("],["）",")"],["倍","×"]];
+  var FWD = PAIRS.slice().sort(function(a,b){ return b[0].length - a[0].length; });
+  var REV = PAIRS.map(function(p){ return [p[1], p[0]]; }).sort(function(a,b){ return b[0].length - a[0].length; });
+  var TITLES = {
+    zh: "vanity_multi — 多链 BIP39 靓号地址生成器",
+    en: "vanity_multi — Multi-Chain BIP39 Vanity Address Generator"
+  };
+  var DESCS = {
+    zh: "单文件 CUDA 程序，五链合一：ETH / BTC / TRX / SOL / SOLBIP 的 BIP39 vanity 地址 GPU 爆破搜索。RTX 4080 SUPER 实测 SOL 7.5M keys/s。",
+    en: "A single-file CUDA program, five chains in one: BIP39 vanity address GPU brute-force search for ETH / BTC / TRX / SOL / SOLBIP. SOL peaks at 7.5M keys/s on an RTX 4080 SUPER."
+  };
+  var cur = "zh";
+  window.VM_LANG = "zh";
+
+  function replaceAll(str, from, to){ return str.split(from).join(to); }
+  function translate(toLang){
+    var map = toLang === "en" ? FWD : REV;
+    var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+      acceptNode: function(node){
+        var p = node.parentNode;
+        if (!p || p.nodeName === "SCRIPT" || p.nodeName === "STYLE") return NodeFilter.FILTER_REJECT;
+        if (p.closest && p.closest(".lang-switch")) return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+    var nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach(function(node){
+      var v = node.nodeValue;
+      if (!v || !v.trim()) return;
+      for (var i = 0; i < map.length; i++) {
+        if (v.indexOf(map[i][0]) !== -1) v = replaceAll(v, map[i][0], map[i][1]);
+      }
+      if (toLang === "en") {
+        for (var j = 0; j < PUNCT.length; j++) {
+          if (v.indexOf(PUNCT[j][0]) !== -1) v = replaceAll(v, PUNCT[j][0], PUNCT[j][1]);
+        }
+      }
+      node.nodeValue = v;
+    });
+  }
+  function setLang(lang){
+    if (lang === cur) return;
+    translate(lang);
+    cur = lang;
+    window.VM_LANG = lang;
+    document.documentElement.lang = lang === "en" ? "en" : "zh-CN";
+    document.title = TITLES[lang];
+    var meta = document.querySelector('meta[name="description"]');
+    if (meta) meta.setAttribute("content", DESCS[lang]);
+    var term = document.querySelector(".term");
+    if (term) term.setAttribute("aria-label", lang === "en" ? "Terminal demo" : "终端演示");
+    var zhBtn = document.getElementById("langZh"), enBtn = document.getElementById("langEn");
+    zhBtn.classList.toggle("on", lang === "zh");
+    enBtn.classList.toggle("on", lang === "en");
+    zhBtn.setAttribute("aria-pressed", lang === "zh" ? "true" : "false");
+    enBtn.setAttribute("aria-pressed", lang === "en" ? "true" : "false");
+  }
+  document.getElementById("langZh").addEventListener("click", function(){ setLang("zh"); });
+  document.getElementById("langEn").addEventListener("click", function(){ setLang("en"); });
+})();
+</script>
+<script>
+(function(){
+  "use strict";
+  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ---------- reveal ---------- */
+  var revealEls = document.querySelectorAll(".reveal");
+  if ("IntersectionObserver" in window && !reduced) {
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){ if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } });
+    }, {threshold:.12});
+    revealEls.forEach(function(el){ io.observe(el); });
+  } else {
+    revealEls.forEach(function(el){ el.classList.add("in"); });
+  }
+  /* safety: never leave content hidden if the observer misses a capture */
+  setTimeout(function(){ revealEls.forEach(function(el){ el.classList.add("in"); }); }, 1400);
+
+  /* ---------- bench bars ---------- */
+  var bars = document.querySelectorAll(".bar i");
+  if ("IntersectionObserver" in window) {
+    var bo = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if (e.isIntersecting) { e.target.style.width = e.target.getAttribute("data-w") + "%"; bo.unobserve(e.target); }
+      });
+    }, {threshold:.4});
+    bars.forEach(function(b){ bo.observe(b); });
+  } else { bars.forEach(function(b){ b.style.width = b.getAttribute("data-w") + "%"; }); }
+
+  /* ---------- ticker ---------- */
+  var samples = [
+    ["0x12345", "9f2c…a41b"], ["1abc", "xKq7…9dPw"], ["TxXx", "…mN42qR"], ["Ase", "7Kp…wZ3d"],
+    ["bc1p", "q8f…t2ka"], ["0x888", "dead…beef"], ["Luck", "y4H…s9Qp"], ["T888", "…vR21xM"]
+  ];
+  var tickHTML = "";
+  for (var r = 0; r < 2; r++) {
+    samples.concat(samples).forEach(function(s){
+      tickHTML += "<span>HIT <b>" + s[0] + "</b> <span class='g'>" + s[1] + "</span></span>";
+    });
+    tickHTML += "<span>ETH <b>339,653 addr/s</b></span><span>SOL <b>7,519,436 keys/s</b></span><span>BTC <b>350,504 addr/s</b></span><span>SOLBIP <b>534,132 keys/s</b></span><span>TRX <b>350,300 addr/s</b></span>";
+  }
+  document.getElementById("tickerTrack").innerHTML = tickHTML;
+
+  /* ---------- hero terminal ---------- */
+  var termEl = document.getElementById("termLines");
+  var script = [
+    {t:"<span class='p'>C:\\vanity&gt;</span> <span class='c'>vanity_multi.exe sol vanity Ase 1024</span>", d:500},
+    {t:"<span class='d'>[sol] run salt: 9f2ca41b…e77d  blocks=1024 threads=262144</span>", d:650},
+    {t:"<span class='d'>[  0.9 s] 7,412,208 keys/s | hit 0</span>", d:550},
+    {t:"<span class='hit'>HIT</span> <span class='d'>[Ase]</span> <span class='addr'>Ase7KpQwZ3dXmN42qRvR21xMs9Qpy4HsD8fGt2KaBn</span>", d:800},
+    {t:"<span class='d'>     -&gt; appended to sol_hits.txt (secret key + keypair JSON)</span>", d:450},
+    {t:"<span class='p'>C:\\vanity&gt;</span> <span class='c'>vanity_multi.exe eth vanity 0x12345 8 1024</span>", d:750},
+    {t:"<span class='d'>[ 12.3 s] 340,703 mnem/s | 340,703 addr/s | hit 3</span>", d:600},
+    {t:"<span class='hit'>HIT</span> <span class='d'>[0x12345]</span> <span class='addr'>0x12345FdA90c41B77eE03d41Ec34eCaEdA94bC207</span> <span class='d'>-&gt; m/44'/60'/0'/0/5</span>", d:850},
+    {t:"<span class='warn'>[!] hits files contain PLAINTEXT mnemonic + private key. keep offline.</span>", d:600},
+    {t:"<span class='p'>C:\\vanity&gt;</span> <span class='c'>vanity_multi.exe solbip selftest</span>", d:700},
+    {t:"<span class='d'>selftest: </span><span class='c'>12 pass, 0 fail</span> <span class='d'>· BIP39 vectors OK · ed25519 RFC 8032 OK</span>", d:900}
+  ];
+  var lineIdx = 0;
+  function typeLine(){
+    if (lineIdx >= script.length) { setTimeout(function(){ termEl.innerHTML = ""; lineIdx = 0; typeLine(); }, 6000); return; }
+    var item = script[lineIdx];
+    termEl.innerHTML += (lineIdx ? "\n" : "") + item.t;
+    lineIdx++;
+    setTimeout(typeLine, reduced ? 60 : item.d);
+  }
+  typeLine();
+
+  /* ---------- copy buttons ---------- */
+  document.querySelectorAll(".copy-btn").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      var text = btn.getAttribute("data-copy") || "";
+      function done(){ btn.textContent = (window.VM_LANG === "en" ? "Copied ✓" : "已复制 ✓"); btn.classList.add("done"); setTimeout(function(){ btn.textContent = (window.VM_LANG === "en" ? "Copy" : "复制"); btn.classList.remove("done"); }, 1600); }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(function(){ fallback(); });
+      } else { fallback(); }
+      function fallback(){
+        var ta = document.createElement("textarea");
+        ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+        document.body.appendChild(ta); ta.select();
+        try { document.execCommand("copy"); done(); } catch(e) {}
+        document.body.removeChild(ta);
+      }
+    });
+  });
+
+  /* ---------- playground simulator ---------- */
+  var B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+  var HEX = "0123456789abcdef";
+  var CHAINS = {
+    eth:   { rate: 339653,  base: 16, gen: genEth,   def: "0x888" },
+    btc:   { rate: 350504,  base: 58, gen: genBtc,   def: "1abc" },
+    trx:   { rate: 350300,  base: 58, gen: genTrx,   def: "T888" },
+    sol:   { rate: 7519436, base: 58, gen: genSol,   def: "Ase" },
+    solbip:{ rate: 534132,  base: 58, gen: genSol,   def: "Ase" }
+  };
+  function rnd(s, n){ var o = ""; for (var i = 0; i < n; i++) o += s.charAt(Math.floor(Math.random() * s.length)); return o; }
+  function genEth(){ return "0x" + rnd(HEX, 40); }
+  function genBtc(){ return "1" + rnd(B58, 30); }
+  function genTrx(){ return "T" + rnd(B58, 33); }
+  function genSol(){ return rnd(B58, 44); }
+  function effPrefix(chain, p){
+    if (chain === "eth") { var q = p.toLowerCase(); if (q.indexOf("0x") === 0) q = q.slice(2); return {show: "0x" + q, matchLen: q.length, base: 16}; }
+    if (chain === "btc") return {show: p, matchLen: Math.max(0, p.length - 1), base: 58};
+    if (chain === "trx") return {show: p, matchLen: Math.max(0, p.length - 1), base: 58};
+    return {show: p, matchLen: p.length, base: 58};
+  }
+  function addrStarts(chain, addr, show){
+    if (chain === "eth") return addr.toLowerCase().indexOf(show.toLowerCase()) === 0;
+    return addr.indexOf(show) === 0;
+  }
+  function fmt(n){ return n.toLocaleString("en-US"); }
+
+  var chainSel = document.getElementById("chainSel");
+  var prefixInput = document.getElementById("prefixInput");
+  var runBtn = document.getElementById("runBtn");
+  var feed = document.getElementById("playFeed");
+  var stTried = document.getElementById("stTried"), stRate = document.getElementById("stRate"),
+      stHits = document.getElementById("stHits"), stEta = document.getElementById("stEta");
+
+  var running = false, timer = null, tried = 0, hits = 0, simRate = 0, curChain = "sol", curShow = "Ase", startedAt = 0;
+
+  function updateEta(){
+    var c = CHAINS[curChain], ep = effPrefix(curChain, prefixInput.value.trim() || c.def);
+    var exp = Math.pow(ep.base, ep.matchLen);
+    stEta.textContent = "≈ " + fmt(exp);
+  }
+  chainSel.addEventListener("change", function(){
+    curChain = chainSel.value;
+    prefixInput.value = CHAINS[curChain].def;
+    updateEta(); stopSim();
+  });
+  prefixInput.addEventListener("input", updateEta);
+  updateEta();
+
+  function pushFeed(html){
+    var div = document.createElement("div");
+    div.innerHTML = html;
+    feed.appendChild(div);
+    while (feed.children.length > 7) feed.removeChild(feed.firstChild);
+  }
+  function tick(){
+    var c = CHAINS[curChain];
+    /* display batch scales with real relative speed, capped for readability */
+    var batch = Math.max(900, Math.min(60000, Math.round(c.rate / 14)));
+    tried += batch;
+    var lines = 2;
+    for (var i = 0; i < lines; i++) {
+      var addr = c.gen();
+      if (addrStarts(curChain, addr, curShow) && Math.random() < 0.55) {
+        hits++;
+        pushFeed("<div class='hitline'><span>HIT [" + curShow + "]</span> <span class='hitaddr'>" + addr + "</span></div>");
+      } else {
+        pushFeed(addr);
+      }
+    }
+    var elapsed = Math.max(0.2, (Date.now() - startedAt) / 1000);
+    simRate = Math.round(tried / elapsed);
+    stTried.textContent = fmt(tried);
+    stRate.textContent = fmt(simRate) + " /s";
+    stHits.textContent = hits;
+  }
+  function startSim(){
+    curChain = chainSel.value;
+    var raw = prefixInput.value.trim() || CHAINS[curChain].def;
+    curShow = effPrefix(curChain, raw).show;
+    if (curChain === "trx" && curShow.charAt(0) !== "T") { curShow = "T" + curShow; prefixInput.value = curShow; }
+    tried = 0; hits = 0; startedAt = Date.now();
+    feed.innerHTML = "";
+    pushFeed("<span style='color:#527078'>// searching prefix \"" + curShow + "\" on " + curChain.toUpperCase() + (window.VM_LANG === "en" ? " … (browser simulation)" : " … (浏览器模拟)") + "</span>");
+    running = true;
+    runBtn.textContent = "■ STOP"; runBtn.classList.add("stop");
+    timer = setInterval(tick, reduced ? 400 : 130);
+  }
+  function stopSim(){
+    running = false;
+    if (timer) clearInterval(timer); timer = null;
+    runBtn.textContent = "▶ START"; runBtn.classList.remove("stop");
+  }
+  runBtn.addEventListener("click", function(){ running ? stopSim() : startSim(); });
+})();
+</script>
+</body>
+</html>
