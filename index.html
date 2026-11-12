@@ -330,6 +330,7 @@
       <a href="#bench">实测速率</a>
       <a href="#play">在线演示</a>
       <a href="#start">快速开始</a>
+      <a href="#coin">项目币</a>
       <a href="#security">安全</a>
       <span class="lang-switch" role="group" aria-label="Language / 语言切换">
         <button type="button" id="langZh" class="on" aria-pressed="true">中文</button>
@@ -553,16 +554,37 @@
     </div>
   </section>
 
+  <!-- COIN -->
+  <section id="coin">
+    <div class="wrap">
+      <div class="sec-head reveal"><span class="sec-no">★</span><h2>项目币 BITCAT <span class="en">/ THE COIN</span></h2></div>
+      <p class="sec-desc reveal">BITCAT (BITCAT) 是 vanity_multi 的项目币，2026-11-12 在 pump.fun 发射。先交开源代码、再发币——代码、官网、实测数据全都可验。</p>
+      <div class="full-run reveal">
+        <span class="badge">🐈‍⬛ 项目币 · COIN</span>
+        <div class="body">
+          <h3>黑猫回归，五链护航 <span class="en">/ THE CAT IS BACK</span></h3>
+          <p>黑猫还是那只黑猫，工具已经从单链长成了五链。买不买随你，代码先摆在这里——这是这个币和空气盘最大的区别。</p>
+          <p style="margin-top:10px">合约地址 CA：<code class="mono" style="color:var(--cyan)">2Rp7zDjnAgDzPstZ5kQZ7QM2isSfiKcYW4PcsaUPpump</code> <button class="copy-btn" type="button" data-copy="2Rp7zDjnAgDzPstZ5kQZ7QM2isSfiKcYW4PcsaUPpump">复制</button></p>
+          <p style="margin-top:8px">认准 CA：全网同名 BITCAT 很多，只有这个地址是 vanity_multi 作者发的。</p>
+          <div class="cta-row" style="margin-top:14px">
+            <a class="btn btn-primary" href="https://pump.fun/coin/2Rp7zDjnAgDzPstZ5kQZ7QM2isSfiKcYW4PcsaUPpump" target="_blank" rel="noopener">→ 去 pump.fun 交易</a>
+            <a class="btn btn-ghost" href="https://dexscreener.com/solana/hwxsrxnzt6m2q8ufkkyqmmkgnvjcf9xrs2icsbw1fhfv" target="_blank" rel="noopener">DexScreener 行情</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- QUICK START -->
   <section id="start">
     <div class="wrap">
       <div class="sec-head reveal"><span class="sec-no">05</span><h2>快速开始 <span class="en">/ QUICK START</span></h2></div>
       <p class="sec-desc reveal">环境：CUDA Toolkit（nvcc 13.3）+ MSVC BuildTools 2022 + NVIDIA GPU。单次编译约 25 分钟以上，ptxas 满载、日志长时间 0 字节是正常现象，别中途重开。</p>
-      <div class="reveal" style="margin-top:16px; border:1px solid rgba(255,176,0,.5); background:rgba(255,176,0,.06); padding:16px 18px; font-size:14px; color:var(--muted)">
-        <b style="color:var(--amber)">⚠ 仓库现状（2026-11-12 核对）：</b>
-        GitHub 仓库根目录目前只有 <code class="mono" style="color:var(--cyan)">vanity_multi.cu</code>、<code class="mono" style="color:var(--cyan)">merge_multi.py</code>、<code class="mono" style="color:var(--cyan)">README.md</code> 三个文件。
-        而 <code class="mono" style="color:var(--cyan)">vanity_multi.cu</code> 开头有 <code class="mono" style="color:var(--cyan)">#include "bip39_words.h"</code>——README 里列出的词表头文件 <code class="mono" style="color:var(--cyan)">bip39_words.h</code> 与编译脚本 <code class="mono" style="color:var(--cyan)">build_multi.bat</code> <b style="color:var(--text)">尚未随仓库发布</b>，直接 clone 后编译会缺头文件。
-        先向作者索取 <code class="mono" style="color:var(--cyan)">bip39_words.h</code>（BIP39 2048 词表）放到 .cu 同目录，再按下方的 nvcc 命令编译。
+      <div class="reveal" style="margin-top:16px; border:1px solid rgba(182,255,46,.45); background:rgba(182,255,46,.06); padding:16px 18px; font-size:14px; color:var(--muted)">
+        <b style="color:var(--lime)">✓ 仓库已完整（2026-11-12 核对）：</b>
+        GitHub 仓库编译所需文件已全部就位，包括 <code class="mono" style="color:var(--cyan)">vanity_multi.cu</code>、<code class="mono" style="color:var(--cyan)">merge_multi.py</code>、<code class="mono" style="color:var(--cyan)">README.md</code> 等文件都在根目录。
+        其中 <code class="mono" style="color:var(--cyan)">vanity_multi.cu</code> 开头有 <code class="mono" style="color:var(--cyan)">#include "bip39_words.h"</code>——它所依赖的词表头文件 <code class="mono" style="color:var(--cyan)">bip39_words.h</code> 与编译脚本 <code class="mono" style="color:var(--cyan)">build_multi.bat</code> <b style="color:var(--text)">现已随仓库发布</b>，直接 clone 下来就能编译。
+        克隆后确认 <code class="mono" style="color:var(--cyan)">bip39_words.h</code>（BIP39 2048 词表）已与 .cu 在同目录，再按下方的 nvcc 命令编译。
       </div>
 
       <div class="code-grid">
@@ -572,7 +594,7 @@
 <span class="cy">git clone</span> https://github.com/luckyzmz/vanity_multi.git
 <span class="cy">cd</span> vanity_multi
 
-<span class="cm"># 把 bip39_words.h 放到同目录后（见上方仓库现状），</span>
+<span class="cm"># bip39_words.h 已随仓库发布、与 .cu 同目录（见上方说明），</span>
 <span class="cm"># 在 vcvars64 环境里直接 nvcc 编译</span>
 nvcc <span class="hl">-O2 -arch=sm_89</span> -Xcompiler=/utf-8 \
   -o vanity_multi.exe vanity_multi.cu</pre>
@@ -756,20 +778,30 @@ vanity_multi.exe <span class="hl">solbip</span> vanity Ase 1024</pre>
     ["// 候选地址流会显示在这里。点 START 开始模拟搜索…","// Candidate addresses will stream here. Hit START to begin the simulated search…"],
     ["提示：前缀规则同真实程序——ETH 用十六进制、TRX 必须以 T 开头、SOL 用 Base58 且区分大小写。演示按各链真实速率的缩放比例滚动，命中概率按真实组合数学计算。","Note: prefix rules match the real program — hex for ETH, TRX must start with T, SOL uses Base58 and is case-sensitive. The demo scrolls at a scaled proportion of each chain's real rate, and hit probability follows the real combinatorics."],
     ["环境：CUDA Toolkit（nvcc 13.3）+ MSVC BuildTools 2022 + NVIDIA GPU。单次编译约 25 分钟以上，ptxas 满载、日志长时间 0 字节是正常现象，别中途重开。","Requirements: CUDA Toolkit (nvcc 13.3) + MSVC BuildTools 2022 + an NVIDIA GPU. A single build takes 25 minutes or more; ptxas running flat-out while the log sits at 0 bytes for a long stretch is normal — do not restart it midway."],
-    ["⚠ 仓库现状（2026-11-12 核对）：","⚠ Repo status (checked 2026-11-12):"],
-    ["GitHub 仓库根目录目前只有","The GitHub repo root currently holds only"],
-    ["三个文件。","three files."],
-    ["而","And"],
+    ["✓ 仓库已完整（2026-11-12 核对）：","✓ Repo complete (checked 2026-11-12):"],
+    ["项目币","The Coin"],
+    ["项目币 BITCAT ","The Coin BITCAT "],
+    ["BITCAT (BITCAT) 是 vanity_multi 的项目币，2026-11-12 在 pump.fun 发射。先交开源代码、再发币——代码、官网、实测数据全都可验。","BITCAT (BITCAT) is the project coin of vanity_multi, launched on pump.fun on 2026-11-12. Open-source code shipped first, coin second — the code, the site and the benchmarks are all verifiable."],
+    ["🐈‍⬛ 项目币 · COIN","🐈‍⬛ THE COIN"],
+    ["黑猫回归，五链护航 ","The cat is back, five chains strong "],
+    ["黑猫还是那只黑猫，工具已经从单链长成了五链。买不买随你，代码先摆在这里——这是这个币和空气盘最大的区别。","The black cat is the same cat; the tool has grown from one chain to five. Buy or not is up to you — the code is right here first, and that is what sets this coin apart from vaporware."],
+    ["合约地址 CA：","Contract (CA):"],
+    ["认准 CA：全网同名 BITCAT 很多，只有这个地址是 vanity_multi 作者发的。","Verify the CA: there are many coins named BITCAT — only this address is from the author of vanity_multi."],
+    ["→ 去 pump.fun 交易","→ Trade on pump.fun"],
+    ["DexScreener 行情","DexScreener chart"],
+    ["GitHub 仓库编译所需文件已全部就位，包括","Everything needed to build is now in the repo root, including"],
+    ["等文件都在根目录。","and the rest — all present in the root."],
+    ["其中","Among them,"],
     ["开头有","begins with"],
-    ["——README 里列出的词表头文件"," — yet the wordlist header listed in the README,"],
+    ["——它所依赖的词表头文件"," — the wordlist header it depends on,"],
     ["与编译脚本","and the build script"],
-    ["尚未随仓库发布","have not been published with the repo"],
-    ["，直接 clone 后编译会缺头文件。"," — clone it now and the build fails on the missing header."],
-    ["先向作者索取","Get"],
-    ["（BIP39 2048 词表）放到 .cu 同目录，再按下方的 nvcc 命令编译。"," (the BIP39 2048 wordlist) from the author, place it beside the .cu file, then compile with the nvcc command below."],
+    ["现已随仓库发布","are now published with the repo"],
+    ["，直接 clone 下来就能编译。"," — clone it now and it builds as-is."],
+    ["克隆后确认","After cloning, check that"],
+    ["（BIP39 2048 词表）已与 .cu 在同目录，再按下方的 nvcc 命令编译。"," (the BIP39 2048 wordlist) sits beside the .cu file, then compile with the nvcc command below."],
     ["复制","Copy"],
     ["# 克隆仓库","# Clone the repo"],
-    ["# 把 bip39_words.h 放到同目录后（见上方仓库现状），","# Put bip39_words.h in the same folder first (see the repo status note above),"],
+    ["# bip39_words.h 已随仓库发布、与 .cu 同目录（见上方说明），","# bip39_words.h ships with the repo, beside the .cu (see the note above),"],
     ["# 在 vcvars64 环境里直接 nvcc 编译","# then compile directly with nvcc inside a vcvars64 environment"],
     ["run — 五链各来一发","run — one shot per chain"],
     [":: 无参数 = 交互菜单",":: no arguments = interactive menu"],
