@@ -318,6 +318,9 @@
   .foot-in{display:flex; flex-wrap:wrap; gap:18px; align-items:flex-start; justify-content:space-between}
   footer .mono-sm{font-family:var(--mono); font-size:12.5px; color:var(--dim); line-height:2}
   footer a{font-family:var(--mono); font-size:13px}
+  .visit-stats{margin-top:22px; padding-top:18px; border-top:1px dashed var(--line); text-align:center; font-family:var(--mono); font-size:12.5px; color:var(--dim); letter-spacing:.04em}
+  .visit-stats b{color:var(--cyan); font-weight:600}
+  .visit-stats .sep{margin:0 10px; color:var(--line)}
 </style>
 </head>
 <body>
@@ -689,6 +692,9 @@ vanity_multi.exe <span class="hl">solbip</span> vanity Ase 1024</pre>
       本站数据取自仓库 README（2026-11-11 终版实测）
     </div>
   </div>
+  <div class="wrap visit-stats">
+    <span id="busuanzi_container_site_pv">总访问量 <b id="busuanzi_value_site_pv">--</b></span><span class="sep">/</span><span id="busuanzi_container_site_uv">访客数 <b id="busuanzi_value_site_uv">--</b></span><span class="sep">/</span><span id="busuanzi_container_page_pv">本页访问 <b id="busuanzi_value_page_pv">--</b></span>
+  </div>
 </footer>
 
 <script>
@@ -856,6 +862,9 @@ vanity_multi.exe <span class="hl">solbip</span> vanity Ase 1024</pre>
     [" — SOLBIP 命中（同上 + 12 词助记词 + 路径）"," — SOLBIP hits (same as above + 12-word mnemonic + path)"],
     [" — 每链一份 32B secret，可用同名环境变量指定路径；SOL 快速版不落 secret，每次运行随机 salt 并在启动时打印，想复现自己记下来"," — one 32B secret per chain, path overridable via the matching environment variable; fast SOL stores no secret — it prints a fresh random salt at startup, so note it down yourself if you want reproducibility"],
     ["作者","Author"],
+    ["总访问量","Total views"],
+    ["访客数","Visitors"],
+    ["本页访问","This page views"],
     ["跑分环境","benchmarked on"],
     ["本站数据取自仓库 README（2026-11-11 终版实测）","All data on this page comes from the repo README (final build, measured 2026-11-11)"],
     ["快速版","fast edition"],
@@ -1110,5 +1119,6 @@ vanity_multi.exe <span class="hl">solbip</span> vanity Ase 1024</pre>
   runBtn.addEventListener("click", function(){ running ? stopSim() : startSim(); });
 })();
 </script>
+<script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
 </body>
 </html>
